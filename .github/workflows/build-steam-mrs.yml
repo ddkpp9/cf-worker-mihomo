@@ -1,0 +1,43 @@
+name: Build Steam MRS Rules
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'steam-rules/rules/**'
+      - '.github/workflows/build-steam-mrs.yml'
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Mihomo
+        run: |
+          curl -L https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-amd64-v1.19.11.gz -o mihomo.gz
+          gzip -d mihomo.gz
+          chmod +x mihomo
+
+      - name: Generate MRS
+        run: |
+          mkdir -p steam-rules/ruleset
+          ./mihomo convert-ruleset domain text \
+            steam-rules/rules/steam-domain.list \
+            steam-rules/ruleset/steam-domain.mrs
+          ./mihomo convert-ruleset ipcidr text \
+            steam-rules/rules/steam-ip.list \
+            steam-rules/ruleset/steam-ip.mrs
+
+      - name: Commit MRS
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add steam-rules/ruleset
+          git commit -m 'update Steam MRS rules' || exit 0
+          git push
